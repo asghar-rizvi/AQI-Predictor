@@ -1,0 +1,75 @@
+name: 10Pearls MLOps Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+    
+  # Scheduled Pipelines (Cron Jobs)
+  schedule:
+    # Runs every hour at minute 0 (Feature Pipeline)
+    - cron: '0 * * * *'
+    # Runs daily at midnight UTC (Training Pipeline)
+    - cron: '0 0 * * *'
+
+jobs:
+  test-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install fastapi uvicorn joblib pytest scikit-learn xgboost
+
+      - name: Run CI Tests
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
+        run: pytest tests/ -v
+
+  hourly-feature-pipeline:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 * * * *'
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests pandas
+
+      - name: Execute Feature Pipeline
+        run: python pipelines/feature_pipeline.py
+
+  daily-training-pipeline:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 0 * * *'
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install joblib pandas scikit-learn xgboost
+
+      - name: Execute Training Pipeline
+        run: python pipelines/train_pipeline.py
